@@ -16,6 +16,8 @@
 子命令：
   init          生成首个有效版本（v1 示例数据）
   publish v2    发布一个新版本并原子切换 ..data
+  publish-named <版本目录名> [v1|v2]
+                用指定目录名发布（可故意取按字典序更早的名字，演示时钟回拨）
   bad-swap      发布一份引用缺失的坏投射并切换（两文件仍同版）
   mixed-swap    制造混用：..data 指向新版本，但一个文件链接指向旧版本
   prune         删除除当前版本外的所有时间戳目录
@@ -29,7 +31,6 @@ import json
 import os
 import shutil
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -181,6 +182,12 @@ def main() -> int:
     sub.add_parser("init")
     pub = sub.add_parser("publish")
     pub.add_argument("revision", choices=["v1", "v2"])
+    named = sub.add_parser(
+        "publish-named",
+        help="用显式目录名发布，可用于制造字典序更早的“时钟回拨”投射",
+    )
+    named.add_argument("version", help="精确的版本目录名，例如 ..2024-01-01T00_00_00.000000000-Z")
+    named.add_argument("revision", nargs="?", choices=["v1", "v2"], default="v2")
     sub.add_parser("bad-swap")
     sub.add_parser("mixed-swap")
     sub.add_parser("prune")
@@ -206,6 +213,20 @@ def main() -> int:
         old = current_version(root)
         version = publish(root, payloads)
         print(f"[publish] {old} -> {version}（{args.revision} 示例数据，..data 原子切换）")
+        status(root)
+        return 0
+
+    if args.cmd == "publish-named":
+        payloads = {
+            "v1": {GROUPS_FILENAME: V1_GROUPS, TARGETS_FILENAME: V1_TARGETS},
+            "v2": {GROUPS_FILENAME: V2_GROUPS, TARGETS_FILENAME: V2_TARGETS},
+        }[args.revision]
+        old = current_version(root)
+        version = publish(root, payloads, version=args.version)
+        lexical_note = ""
+        if old is not None and version < old:
+            lexical_note = "；注意新目录名按字典序旧于当前版本（模拟节点时钟回拨），服务仍应整版生效"
+        print(f"[publish-named] {old} -> {version}（{args.revision} 示例数据{lexical_note}）")
         status(root)
         return 0
 
