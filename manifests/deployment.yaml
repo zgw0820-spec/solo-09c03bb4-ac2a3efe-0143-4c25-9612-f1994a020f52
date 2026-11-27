@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inspection-config
+  namespace: default
+spec:
+  # 单实例：现行配置版本保存在进程内存中。
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inspection-config
+  template:
+    metadata:
+      labels:
+        app: inspection-config
+    spec:
+      containers:
+        - name: app
+          image: inspection-config:local
+          ports:
+            - containerPort: 8000
+          env:
+            - name: CONFIG_VOLUME_ROOT
+              value: /etc/inspection-config
+            # 需要自动轮询重读时打开；不设置则只响应 POST /admin/reload
+            # - name: CONFIG_WATCH_INTERVAL
+            #   value: "2"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+          readinessProbe:
+            httpGet:
+              # /version 在尚无生效配置时返回 503，readiness 会摘流；
+              # 进程不退出，配置修复并重读成功后自动恢复就绪。
+              path: /version
+              port: 8000
+          volumeMounts:
+            - name: config
+              mountPath: /etc/inspection-config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: inspection-config
+            # 默认 kubelet 约 60-90s 同步一次；需要更快生效可缩短该值。
+            # 无论自动轮询还是手动 reload，都不需要重启 Pod。

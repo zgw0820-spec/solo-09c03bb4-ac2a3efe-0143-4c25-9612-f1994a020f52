@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# 演练时由 scripts/kube_sim.py 生成的模拟投射卷
+volumes/config/..data
+volumes/config/..*/
+volumes/config/*.json
+volumes/config/.tmp-*
+volumes/config/.old-*
+volumes/config/.swap-*

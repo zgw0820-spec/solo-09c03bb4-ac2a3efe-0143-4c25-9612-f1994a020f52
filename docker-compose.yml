@@ -1,0 +1,16 @@
+services:
+  inspection-config:
+    build: .
+    image: inspection-config:local
+    container_name: inspection-config
+    ports:
+      - "8000:8000"
+    environment:
+      # 指向 ConfigMap 投射卷挂载点；设置该变量可开启后台自动轮询重读，
+      # 不设置则只通过 POST /admin/reload 手动触发。
+      CONFIG_VOLUME_ROOT: /etc/inspection-config
+      # CONFIG_WATCH_INTERVAL: "2"
+    volumes:
+      # 只读挂载，模拟 K8s 中 projected/configMap volume 的挂载方式。
+      - ./volumes/config:/etc/inspection-config:ro
+    restart: unless-stopped
